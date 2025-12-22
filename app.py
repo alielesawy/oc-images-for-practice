@@ -85,6 +85,7 @@ def init_db():
             logger.warning(f"Database wait attempt {i+1}/10... ({e})")
             time.sleep(2)
     logger.critical("Could not initialize database after multiple attempts.")
+    sys.exit(1)
 
 # Request Logging Middleware
 @app.before_request
@@ -165,10 +166,10 @@ def delete_task(id):
         logger.error(f"Error deleting task: {e}", exc_info=True)
         return jsonify({"error": "Internal Server Error"}), 500
 
+# Initialize DB on startup (Fail Fast)
+init_db()
+
 if __name__ == '__main__':
-    # Initialize DB (attempt)
-    init_db()
-    
-    # Run server
+    # Run server for development only
     logger.info("Starting Flask application on port 5000...")
     app.run(host='0.0.0.0', port=5000)
