@@ -3,6 +3,7 @@
 
     # Metadata as labels
     LABEL io.k8s.description="Frontend UI for OCP TaskMaster" \
+        io.k8s.description="Frontend UI... Requires: BACKEND_URL, APP_THEME" \
         io.k8s.display-name="TaskMaster Frontend" \
         io.openshift.tags="nodejs,frontend,web" \
         io.openshift.expose-services="8080:http" \

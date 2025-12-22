@@ -3,6 +3,7 @@
 
     # Metadata as labels
     LABEL io.k8s.description="Backend API for OCP TaskMaster" \
+        io.k8s.description="Backend API... Requires: DATABASE_URL" \
         io.k8s.display-name="TaskMaster Backend" \
         io.openshift.tags="python,flask,backend" \
         io.openshift.expose-services="5000:http" \
