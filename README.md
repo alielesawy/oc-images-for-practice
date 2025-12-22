@@ -151,4 +151,4 @@ podman run -d -p 8080:8080 --net task-net \
 | Variable | Description | Example |
 | :--- | :--- | :--- |
 | `BACKEND_URL` | URL of the Backend API | `http://backend-service:5000` |
-| `APP_THEME` | Color theme (`red` or `blue`) | `blue` |
+| `APP_THEME` | Color theme (`red`, `blue`, `green`, `dark`) | `dark` |
