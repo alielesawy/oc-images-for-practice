@@ -3,39 +3,70 @@ import mysql.connector
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import time
+import logging
+import sys
+from urllib.parse import urlparse
+
+# Configure Logging
+logging.basicConfig(
+    stream=sys.stdout,
+    level=logging.DEBUG,
+    format='[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)
 
 # Database Connection Details
-DB_HOST = os.environ.get("DB_HOST", "localhost")
-DB_USER = os.environ.get("DB_USER", "root")
-DB_PASSWORD = os.environ.get("DB_PASSWORD", "password")
-DB_NAME = os.environ.get("DB_NAME", "todo_db")
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+def parse_db_url(url):
+    """Parses the DATABASE_URL string."""
+    if not url:
+        return None
+    try:
+        # Expected format: mysql://username:password@host:port/databasename
+        parsed = urlparse(url)
+        return {
+            'host': parsed.hostname,
+            'port': parsed.port or 3306,
+            'user': parsed.username,
+            'password': parsed.password,
+            'database': parsed.path.lstrip('/')
+        }
+    except Exception as e:
+        logger.error(f"Failed to parse DATABASE_URL: {e}")
+        return None
 
 def get_db_connection():
     """Establishes a connection to the database."""
+    db_config = parse_db_url(DATABASE_URL)
+    
+    if not db_config:
+        logger.error("DATABASE_URL is missing or invalid.")
+        return None
+
+    # Mask password for logging
+    log_config = db_config.copy()
+    if log_config.get('password'):
+        log_config['password'] = '******'
+    
+    logger.debug(f"Attempting to connect to database: {log_config['host']}:{log_config['port']} / {log_config['database']}")
+
     try:
-        conn = mysql.connector.connect(
-            host=DB_HOST,
-            user=DB_USER,
-            password=DB_PASSWORD,
-            database=DB_NAME
-        )
+        conn = mysql.connector.connect(**db_config)
+        logger.debug("Database connection established successfully.")
         return conn
     except mysql.connector.Error as err:
-        print(f"Error connecting to database: {err}")
+        logger.error(f"Error connecting to database: {err}", exc_info=True)
         return None
 
 def init_db():
     """Initializes the database table if it doesn't exist."""
-    print("Initializing database...")
-    # Retry logic for database connection (useful for container startup order)
-    for _ in range(10):
+    logger.info("Initializing database...")
+    for i in range(10):
         try:
-            # Connect to MySQL server first to create DB if needed (optional, assuming DB exists per prompt reqs but safe to check)
-            # However, prompt says "Database Name" in env, so we assume DB exists or we connect to it.
-            # We will just connect to the DB directly.
             conn = get_db_connection()
             if conn:
                 cursor = conn.cursor()
@@ -48,19 +79,19 @@ def init_db():
                 conn.commit()
                 cursor.close()
                 conn.close()
-                print("Database initialized successfully.")
+                logger.info("Database initialized successfully.")
                 return
         except Exception as e:
-            print(f"Database wait... ({e})")
+            logger.warning(f"Database wait attempt {i+1}/10... ({e})")
             time.sleep(2)
-    print("Could not initialize database.")
+    logger.critical("Could not initialize database after multiple attempts.")
 
-# Initialize DB on start (in a real production app, this might be a separate migration step)
-# For this simple task, we'll do it before first request or just let it run on import if we can satisfy the connection,
-# but usually it's better to verify connection on start.
-# We will disable auto-run on import to avoid build-time issues, but prompt asks for a simple app.
-# Let's add a before_first_request or just call it if we run as main.
-# Flask 2.3+ deprecated before_first_request. We can just run it at the bottom.
+# Request Logging Middleware
+@app.before_request
+def log_request_info():
+    logger.debug(f"Handling Request: {request.method} {request.path}")
+    if request.is_json:
+        logger.debug(f"Request Body: {request.get_json()}")
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -72,17 +103,23 @@ def get_tasks():
     if not conn:
         return jsonify({"error": "Database connection failed"}), 500
     
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM tasks")
-    tasks = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return jsonify(tasks)
+    try:
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM tasks")
+        tasks = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        logger.debug(f"Retrieved {len(tasks)} tasks.")
+        return jsonify(tasks)
+    except Exception as e:
+        logger.error(f"Error retrieving tasks: {e}", exc_info=True)
+        return jsonify({"error": "Internal Server Error"}), 500
 
 @app.route('/tasks', methods=['POST'])
 def add_task():
     data = request.json
     if not data or 'content' not in data:
+        logger.warning("Invalid request: Content is required")
         return jsonify({"error": "Content is required"}), 400
     
     content = data['content']
@@ -91,14 +128,18 @@ def add_task():
     if not conn:
         return jsonify({"error": "Database connection failed"}), 500
     
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO tasks (content) VALUES (%s)", (content,))
-    conn.commit()
-    new_id = cursor.lastrowid
-    cursor.close()
-    conn.close()
-    
-    return jsonify({"id": new_id, "content": content, "message": "Task added"}), 201
+    try:
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO tasks (content) VALUES (%s)", (content,))
+        conn.commit()
+        new_id = cursor.lastrowid
+        cursor.close()
+        conn.close()
+        logger.info(f"Task added with ID: {new_id}")
+        return jsonify({"id": new_id, "content": content, "message": "Task added"}), 201
+    except Exception as e:
+        logger.error(f"Error adding task: {e}", exc_info=True)
+        return jsonify({"error": "Internal Server Error"}), 500
 
 @app.route('/tasks/<int:id>', methods=['DELETE'])
 def delete_task(id):
@@ -106,21 +147,28 @@ def delete_task(id):
     if not conn:
         return jsonify({"error": "Database connection failed"}), 500
     
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM tasks WHERE id = %s", (id,))
-    conn.commit()
-    rows_affected = cursor.rowcount
-    cursor.close()
-    conn.close()
-    
-    if rows_affected == 0:
-        return jsonify({"error": "Task not found"}), 404
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM tasks WHERE id = %s", (id,))
+        conn.commit()
+        rows_affected = cursor.rowcount
+        cursor.close()
+        conn.close()
         
-    return jsonify({"message": "Task deleted", "id": id}), 200
+        if rows_affected == 0:
+            logger.warning(f"Task with ID {id} not found for deletion.")
+            return jsonify({"error": "Task not found"}), 404
+        
+        logger.info(f"Task with ID {id} deleted.")
+        return jsonify({"message": "Task deleted", "id": id}), 200
+    except Exception as e:
+        logger.error(f"Error deleting task: {e}", exc_info=True)
+        return jsonify({"error": "Internal Server Error"}), 500
 
 if __name__ == '__main__':
-    # Attempt to initialize DB
+    # Initialize DB (attempt)
     init_db()
     
     # Run server
+    logger.info("Starting Flask application on port 5000...")
     app.run(host='0.0.0.0', port=5000)

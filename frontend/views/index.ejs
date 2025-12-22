@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OCP TaskMaster</title>
     <style>
         :root {
-            --rh-red: #EE0000;
+            /* Dynamic Theme Color */
+            --primary-color: <%=theme==='blue' ? '#0066CC': '#EE0000' %>;
+
             --rh-black: #151515;
             --rh-white: #FFFFFF;
             --bg-color: #f5f5f5;
@@ -31,8 +34,8 @@
             max-width: 500px;
             padding: 2rem;
             border-radius: 4px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            border-top: 5px solid var(--rh-red);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-top: 5px solid var(--primary-color);
         }
 
         header {
@@ -64,11 +67,11 @@
 
         input[type="text"]:focus {
             outline: none;
-            border-color: var(--rh-red);
+            border-color: var(--primary-color);
         }
 
         button.add-btn {
-            background-color: var(--rh-red);
+            background-color: var(--primary-color);
             color: var(--rh-white);
             border: none;
             padding: 10px 20px;
@@ -79,7 +82,7 @@
         }
 
         button.add-btn:hover {
-            background-color: #be0000;
+            filter: brightness(85%);
         }
 
         .task-list {
@@ -116,8 +119,8 @@
         }
 
         .delete-btn:hover {
-            color: var(--rh-red);
-            background-color: #faebeb;
+            color: var(--primary-color);
+            background-color: #f0f0f0;
         }
 
         footer {
@@ -128,6 +131,7 @@
         }
     </style>
 </head>
+
 <body>
 
     <div class="container">
@@ -171,7 +175,7 @@
         function renderTasks(tasks) {
             const list = document.getElementById('taskList');
             list.innerHTML = '';
-            
+
             if (tasks.length === 0) {
                 list.innerHTML = '<li class="task-item" style="justify-content: center; color: #888;">No tasks found. Add one!</li>';
                 return;
@@ -241,11 +245,12 @@
                 '"': '&quot;',
                 "'": '&#039;'
             };
-            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+            return text.replace(/[&<>"']/g, function (m) { return map[m]; });
         }
 
         // Load tasks on startup
         fetchTasks();
     </script>
 </body>
+
 </html>
