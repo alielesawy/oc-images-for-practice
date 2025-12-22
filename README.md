@@ -39,11 +39,11 @@ Run the apps directly on your machine without containers for quick iteration.
 3.  Set the Database URL (replace values with your actual DB credentials):
     *   *PowerShell*:
         ```powershell
-        $env:DATABASE_URL='mysql://redhat:redhat123@104.248.22.89:3306/todo'
+        $env:DATABASE_URL='mysql://user:passs@host:port/database'
         ```
     *   *Bash*:
         ```bash
-        export DATABASE_URL='mysql://redhat:redhat123@104.248.22.89:3306/todo'
+        export DATABASE_URL='mysql://user:passs@host:port/database'
         ```
 4.  Run the application:
     ```bash
