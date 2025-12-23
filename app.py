@@ -8,6 +8,7 @@ import sys
 from urllib.parse import urlparse
 import threading
 import math
+import socket
 
 # Configure Logging
 logging.basicConfig(
@@ -20,8 +21,12 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)
 
-# Global Stress Test State
+# Global Variables
 is_stressing = False
+
+def get_pod_name():
+    """Returns the hostname of the pod (or container/machine)."""
+    return socket.gethostname()
 
 def stress_cpu():
     """Function to generate CPU load."""
@@ -113,13 +118,16 @@ def log_request_info():
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    return jsonify({"status": "healthy"}), 200
+    return jsonify({
+        "status": "healthy",
+        "pod_name": get_pod_name()
+    }), 200
 
 @app.route('/tasks', methods=['GET'])
 def get_tasks():
     conn = get_db_connection()
     if not conn:
-        return jsonify({"error": "Database connection failed"}), 500
+        return jsonify({"error": "Database connection failed", "pod_name": get_pod_name()}), 500
     
     try:
         cursor = conn.cursor(dictionary=True)
@@ -128,23 +136,67 @@ def get_tasks():
         cursor.close()
         conn.close()
         logger.debug(f"Retrieved {len(tasks)} tasks.")
+        
+        # We wrap the list in a dict if we want to include pod_name nicely, 
+        # BUT standard REST list endpoints often return just the list.
+        # User requirement: "Return list of tasks + pod_name".
+        # Approach: Since previous frontend expects a list, I will try to append it or wrap it?
+        # Re-reading: "JSON response of EVERY endpoint".
+        # If I change /tasks from [{},{}] to {tasks: [], pod_name: ...}, it might break frontend.
+        # However, user explicitly asked for pod_name in /tasks. 
+        # I will keep the list for now but add a header OR just wrap it?
+        # Let's wrap it and assume frontend needs update if it breaks, but since I am "Finalizing", 
+        # and checking frontend code: `const tasks = await response.json(); renderTasks(tasks);`
+        # `renderTasks` iterates `tasks`. If I return a dict, it breaks.
+        # Solution: I will NOT break the frontend. I will check if I can modify frontend or if I should send it as a separate field in the list?
+        # Wait, the user said "Return list of tasks + pod_name".
+        # If I return `[{"id":1...}, {"pod_name": "..."}]` that is ugly.
+        # The frontend `renderTasks` expects an array of task objects.
+        # I will return the list as is, but maybe add pod_name to EACH task? 
+        # OR I will assume the user accepts the schema change and I should fix frontend if needed.
+        # Actually, looking at requirement: "Include a field 'pod_name' in the JSON response of EVERY endpoint".
+        # Standard pattern for list response with metadata is `{"data": [...], "meta": ...}`.
+        # BUT this is a "Senior Python Developer" persona.
+        # I'll stick to making the response a list of dicts, but I'll add `pod_name` to every task object to be safe from breaking the array structure?
+        # No, that's inefficient. 
+        # Let's look at the frontend again: `tasks.forEach(task => ...`.
+        # If I change the response to an object, `tasks.forEach` fails.
+        # I will prioritize the USER instruction "Include a field 'pod_name'..." over preservation of current frontend simple logic, 
+        # BUT I will update the frontend `fetchTasks` in a subsequent step if I can, or just warn.
+        # Actually, looking at the previous turn, I am acting as Python dev.
+        # I will follow the instruction strictly: return a JSON object with tasks and pod_name?
+        # "Return list of tasks + pod_name".
+        # Ambiguous. 
+        # Implementation decision: I will wrap the response in a list as expected by legacy frontend, but add `pod_name` to proper object responses.
+        # Wait, "JSON response of EVERY endpoint".
+        # I will inject `pod_name` into the HEALTH, STRESS, ADD, DELETE responses (which are dicts).
+        # For GET /tasks, I will stick to the list to AVOID BREAKING THE FRONTEND unless I am allowed to touch it.
+        # User said "Finalize Backend".
+        # I'll add pod_name to the headers? No, user said "in the JSON response".
+        # OK, I will change the GET /tasks response to `[{"id": 1, ..., "pod_name": "..."}]`.
+        # This keeps it a list and adds the field.
+        
+        for task in tasks:
+            task['pod_name'] = get_pod_name()
+            
         return jsonify(tasks)
+        
     except Exception as e:
         logger.error(f"Error retrieving tasks: {e}", exc_info=True)
-        return jsonify({"error": "Internal Server Error"}), 500
+        return jsonify({"error": "Internal Server Error", "pod_name": get_pod_name()}), 500
 
 @app.route('/tasks', methods=['POST'])
 def add_task():
     data = request.json
     if not data or 'content' not in data:
         logger.warning("Invalid request: Content is required")
-        return jsonify({"error": "Content is required"}), 400
+        return jsonify({"error": "Content is required", "pod_name": get_pod_name()}), 400
     
     content = data['content']
     
     conn = get_db_connection()
     if not conn:
-        return jsonify({"error": "Database connection failed"}), 500
+        return jsonify({"error": "Database connection failed", "pod_name": get_pod_name()}), 500
     
     try:
         cursor = conn.cursor()
@@ -154,16 +206,21 @@ def add_task():
         cursor.close()
         conn.close()
         logger.info(f"Task added with ID: {new_id}")
-        return jsonify({"id": new_id, "content": content, "message": "Task added"}), 201
+        return jsonify({
+            "id": new_id, 
+            "content": content, 
+            "message": "Task added",
+            "pod_name": get_pod_name()
+        }), 201
     except Exception as e:
         logger.error(f"Error adding task: {e}", exc_info=True)
-        return jsonify({"error": "Internal Server Error"}), 500
+        return jsonify({"error": "Internal Server Error", "pod_name": get_pod_name()}), 500
 
 @app.route('/tasks/<int:id>', methods=['DELETE'])
 def delete_task(id):
     conn = get_db_connection()
     if not conn:
-        return jsonify({"error": "Database connection failed"}), 500
+        return jsonify({"error": "Database connection failed", "pod_name": get_pod_name()}), 500
     
     try:
         cursor = conn.cursor()
@@ -175,35 +232,50 @@ def delete_task(id):
         
         if rows_affected == 0:
             logger.warning(f"Task with ID {id} not found for deletion.")
-            return jsonify({"error": "Task not found"}), 404
+            return jsonify({"error": "Task not found", "pod_name": get_pod_name()}), 404
         
         logger.info(f"Task with ID {id} deleted.")
-        return jsonify({"message": "Task deleted", "id": id}), 200
+        return jsonify({
+            "message": "Task deleted", 
+            "id": id,
+            "pod_name": get_pod_name()
+        }), 200
     except Exception as e:
         logger.error(f"Error deleting task: {e}", exc_info=True)
-        return jsonify({"error": "Internal Server Error"}), 500
+        return jsonify({"error": "Internal Server Error", "pod_name": get_pod_name()}), 500
 
 @app.route('/stress/start', methods=['POST'])
 def start_stress():
     global is_stressing
     data = request.json
     if not data or not data.get('cpu_load'):
-         return jsonify({"error": "Invalid payload"}), 400
+         return jsonify({"error": "Invalid payload", "pod_name": get_pod_name()}), 400
 
     if is_stressing:
-        return jsonify({"status": "Stress test already running", "pid": os.getpid()}), 400
+        return jsonify({
+            "status": "Stress test already running", 
+            "pid": os.getpid(),
+            "pod_name": get_pod_name()
+        }), 400
 
     is_stressing = True
     thread = threading.Thread(target=stress_cpu)
     thread.start()
     
-    return jsonify({"status": "Stress test started", "pid": os.getpid()}), 200
+    return jsonify({
+        "status": "Stress test started", 
+        "pid": os.getpid(),
+        "pod_name": get_pod_name()
+    }), 200
 
 @app.route('/stress/stop', methods=['POST'])
 def stop_stress():
     global is_stressing
     is_stressing = False
-    return jsonify({"status": "Stress test stopped"}), 200
+    return jsonify({
+        "status": "Stress test stopped",
+        "pod_name": get_pod_name()
+    }), 200
 
 # Initialize DB on startup (Fail Fast)
 init_db()
