@@ -1,6 +1,8 @@
 const express = require('express');
 const app = express();
 const path = require('path');
+const http = require('http');
+const url = require('url');
 
 // Critical Dependency Check
 if (!process.env.BACKEND_URL) {
@@ -26,24 +28,78 @@ app.use((req, res, next) => {
     next();
 });
 
-// Environment Variables
 const PORT = 8080;
 
+// Helper to fetch data from backend (Server-Side)
+function fetchBackendData(endpoint) {
+    return new Promise((resolve, reject) => {
+        const backendUrl = new url.URL(BACKEND_URL);
+        // Construct options, handling URL path if it exists
+        const options = {
+            hostname: backendUrl.hostname,
+            port: backendUrl.port || 80,
+            path: path.join(backendUrl.pathname, endpoint).replace(/\\/g, '/'), // Ensure forward slashes
+            method: 'GET',
+            timeout: 2000 // 2s timeout
+        };
+
+        const req = http.request(options, (res) => {
+            let data = '';
+            res.on('data', (chunk) => data += chunk);
+            res.on('end', () => {
+                try {
+                    resolve(JSON.parse(data));
+                } catch (e) {
+                    resolve(null); // Failed to parse
+                }
+            });
+        });
+
+        req.on('error', (e) => {
+            console.error(`Backend fetch error: ${e.message}`);
+            resolve(null);
+        });
+
+        req.end();
+    });
+}
+
 // Routes
-app.get('/', (req, res) => {
+app.get('/', async (req, res) => {
+    let backendPodName = "Checking...";
+
+    // Try to fetch tasks to get pod info
+    const tasks = await fetchBackendData('/tasks');
+
+    if (tasks && Array.isArray(tasks) && tasks.length > 0) {
+        if (tasks[0].pod_name) {
+            backendPodName = tasks[0].pod_name;
+        }
+    } else if (tasks && !Array.isArray(tasks) && tasks.error) {
+        // Did we get an error object with pod_name?
+        if (tasks.pod_name) backendPodName = tasks.pod_name;
+    } else {
+        // Fallback: try health if tasks empty (optional optimization, but good for "Final")
+        const health = await fetchBackendData('/health');
+        if (health && health.pod_name) {
+            backendPodName = health.pod_name;
+        } else {
+            backendPodName = "Unknown (Backend Unreachable?)";
+        }
+    }
+
     res.render('index', {
         backendUrl: BACKEND_URL,
-        theme: APP_THEME || 'red'
+        theme: APP_THEME || 'red',
+        backend_pod_name: backendPodName
     });
 });
-
-
-
 
 app.get('/stress', (req, res) => {
     res.render('stress', {
         backendUrl: BACKEND_URL,
-        theme: APP_THEME || 'red'
+        theme: APP_THEME || 'red',
+        backend_pod_name: "Ready to Connect..." // Initial state
     });
 });
 
