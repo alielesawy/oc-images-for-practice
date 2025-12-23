@@ -6,6 +6,8 @@ import time
 import logging
 import sys
 from urllib.parse import urlparse
+import threading
+import math
 
 # Configure Logging
 logging.basicConfig(
@@ -17,6 +19,21 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)
+
+# Global Stress Test State
+is_stressing = False
+
+def stress_cpu():
+    """Function to generate CPU load."""
+    global is_stressing
+    logger.info("Stress test started (CPU load).")
+    while is_stressing:
+        # Perform heavy calculation (e.g., primes)
+        [x * x for x in range(1000)]
+        # Check flag frequently to allow quick stop
+        if not is_stressing:
+            break
+    logger.info("Stress test stopped.")
 
 # Database Connection Details
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -165,6 +182,28 @@ def delete_task(id):
     except Exception as e:
         logger.error(f"Error deleting task: {e}", exc_info=True)
         return jsonify({"error": "Internal Server Error"}), 500
+
+@app.route('/stress/start', methods=['POST'])
+def start_stress():
+    global is_stressing
+    data = request.json
+    if not data or not data.get('cpu_load'):
+         return jsonify({"error": "Invalid payload"}), 400
+
+    if is_stressing:
+        return jsonify({"status": "Stress test already running", "pid": os.getpid()}), 400
+
+    is_stressing = True
+    thread = threading.Thread(target=stress_cpu)
+    thread.start()
+    
+    return jsonify({"status": "Stress test started", "pid": os.getpid()}), 200
+
+@app.route('/stress/stop', methods=['POST'])
+def stop_stress():
+    global is_stressing
+    is_stressing = False
+    return jsonify({"status": "Stress test stopped"}), 200
 
 # Initialize DB on startup (Fail Fast)
 init_db()
