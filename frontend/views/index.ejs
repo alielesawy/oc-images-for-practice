@@ -1,278 +1,261 @@
-<!DOCTYPE html>
-<html lang="en">
+<% /* Theme Logic */ let primaryColor='#EE0000' ; let bgColor='#f5f5f5' ; let cardColor='#ffffff' ; let
+    textColor='#151515' ; let borderColor='#d2d2d2' ; if (locals.theme==='blue' ) { primaryColor='#0066CC' ; } else if
+    (locals.theme==='green' ) { primaryColor='#3E8635' ; } else if (locals.theme==='dark' ) { primaryColor='#EE0000' ;
+    bgColor='#151515' ; cardColor='#1f1f1f' ; textColor='#f0f0f0' ; borderColor='#333333' ; } %>
+    <!DOCTYPE html>
+    <html lang="en">
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OCP TaskMaster</title>
-    <style>
-        <% // Theme Logic
-        let primaryColor='#EE0000'; // Default Red
-        let bgColor='#f5f5f5';
-        let cardColor='#ffffff';
-        let textColor='#151515';
-        let borderColor='#d2d2d2';
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>OCP TaskMaster</title>
+        <style>
+            :root {
+                /* Dynamic Theme Variables */
+                --primary-color: <%=primaryColor %>;
+                --rh-black: <%=textColor %>;
+                --rh-white: #FFFFFF;
+                --bg-color: <%=bgColor %>;
+                --card-sf: <%=cardColor %>;
+                --border-color: <%=borderColor %>;
+            }
 
-        if (theme==='blue') {
-            primaryColor='#0066CC';
-        }
+            body {
+                font-family: 'Red Hat Text', 'Overpass', Helvetica, Arial, sans-serif;
+                background-color: var(--bg-color);
+                color: var(--rh-black);
+                margin: 0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+            }
 
-        else if (theme==='green') {
-            primaryColor='#3E8635';
-        }
+            .container {
+                background-color: var(--card-sf);
+                width: 100%;
+                max-width: 500px;
+                padding: 2rem;
+                border-radius: 4px;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                border-top: 5px solid var(--primary-color);
+            }
 
-        else if (theme==='dark') {
-            primaryColor='#EE0000'; // Keep red accent or make it custom
-            bgColor='#151515'; // Dark background
-            cardColor='#1f1f1f'; // Slightly lighter card
-            textColor='#f0f0f0'; // Light text
-            borderColor='#333333';
-        }
+            header {
+                margin-bottom: 2rem;
+                text-align: center;
+            }
 
-        %> :root {
-            /* Dynamic Theme Variables */
-            --primary-color: <%=primaryColor %>;
-            --rh-black: <%=textColor %>;
-            --rh-white: #FFFFFF;
-            --bg-color: <%=bgColor %>;
-            --card-sf: <%=cardColor %>;
-            --border-color: <%=borderColor %>;
-        }
+            h1 {
+                font-size: 1.5rem;
+                font-weight: 700;
+                margin: 0;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
 
-        body {
-            font-family: 'Red Hat Text', 'Overpass', Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--rh-black);
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
+            .input-group {
+                display: flex;
+                gap: 10px;
+                margin-bottom: 2rem;
+            }
 
-        .container {
-            background-color: var(--card-sf);
-            width: 100%;
-            max-width: 500px;
-            padding: 2rem;
-            border-radius: 4px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            border-top: 5px solid var(--primary-color);
-        }
+            input[type="text"] {
+                flex-grow: 1;
+                padding: 10px 15px;
+                border: 1px solid var(--border-color);
+                border-radius: 3px;
+                font-size: 1rem;
+            }
 
-        header {
-            margin-bottom: 2rem;
-            text-align: center;
-        }
+            input[type="text"]:focus {
+                outline: none;
+                border-color: var(--primary-color);
+            }
 
-        h1 {
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin: 0;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
+            button.add-btn {
+                background-color: var(--primary-color);
+                color: var(--rh-white);
+                border: none;
+                padding: 10px 20px;
+                border-radius: 3px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: background-color 0.2s;
+            }
 
-        .input-group {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 2rem;
-        }
+            button.add-btn:hover {
+                filter: brightness(85%);
+            }
 
-        input[type="text"] {
-            flex-grow: 1;
-            padding: 10px 15px;
-            border: 1px solid var(--border-color);
-            border-radius: 3px;
-            font-size: 1rem;
-        }
+            .task-list {
+                list-style: none;
+                padding: 0;
+                margin: 0;
+            }
 
-        input[type="text"]:focus {
-            outline: none;
-            border-color: var(--primary-color);
-        }
+            .task-item {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 12px 15px;
+                border-bottom: 1px solid var(--border-color);
+                transition: background-color 0.1s;
+            }
 
-        button.add-btn {
-            background-color: var(--primary-color);
-            color: var(--rh-white);
-            border: none;
-            padding: 10px 20px;
-            border-radius: 3px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
+            .task-item:last-child {
+                border-bottom: none;
+            }
 
-        button.add-btn:hover {
-            filter: brightness(85%);
-        }
+            .task-item:hover {
+                background-color: #fafafa;
+            }
 
-        .task-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
+            .delete-btn {
+                background-color: transparent;
+                color: #6a6e73;
+                border: 1px solid transparent;
+                cursor: pointer;
+                font-size: 0.9rem;
+                padding: 5px 10px;
+                border-radius: 3px;
+            }
 
-        .task-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 15px;
-            border-bottom: 1px solid var(--border-color);
-            transition: background-color 0.1s;
-        }
+            .delete-btn:hover {
+                color: var(--primary-color);
+                background-color: #f0f0f0;
+            }
 
-        .task-item:last-child {
-            border-bottom: none;
-        }
+            footer {
+                margin-top: 2rem;
+                text-align: center;
+                font-size: 0.8rem;
+                color: #6a6e73;
+            }
+        </style>
+    </head>
 
-        .task-item:hover {
-            background-color: #fafafa;
-        }
+    <body>
 
-        .delete-btn {
-            background-color: transparent;
-            color: #6a6e73;
-            border: 1px solid transparent;
-            cursor: pointer;
-            font-size: 0.9rem;
-            padding: 5px 10px;
-            border-radius: 3px;
-        }
+        <div class="container">
+            <header>
+                <h1>OCP TaskMaster</h1>
+            </header>
 
-        .delete-btn:hover {
-            color: var(--primary-color);
-            background-color: #f0f0f0;
-        }
+            <div class="input-group">
+                <input type="text" id="taskInput" placeholder="New task...">
+                <button class="add-btn" onclick="addTask()">ADD</button>
+            </div>
 
-        footer {
-            margin-top: 2rem;
-            text-align: center;
-            font-size: 0.8rem;
-            color: #6a6e73;
-        }
-    </style>
-</head>
+            <ul id="taskList" class="task-list">
+                <!-- Tasks will be injected here -->
+                <li class="task-item" style="justify-content: center; color: #888;">Loading tasks...</li>
+            </ul>
 
-<body>
-
-    <div class="container">
-        <header>
-            <h1>OCP TaskMaster</h1>
-        </header>
-
-        <div class="input-group">
-            <input type="text" id="taskInput" placeholder="New task...">
-            <button class="add-btn" onclick="addTask()">ADD</button>
+            <footer>
+                Running on OpenShift &bull; Backend: <%= backendUrl %> <br>
+                    <a href="/stress" style="color: inherit; margin-top: 5px; display: inline-block;">System
+                        Diagnostics</a>
+            </footer>
         </div>
 
-        <ul id="taskList" class="task-list">
-            <!-- Tasks will be injected here -->
-            <li class="task-item" style="justify-content: center; color: #888;">Loading tasks...</li>
-        </ul>
+        <script>
+            const BACKEND_URL = "<%= backendUrl %>";
 
-        <footer>
-            Running on OpenShift &bull; Backend: <%= backendUrl %>
-        </footer>
-    </div>
+            // Remove trailing slash if present for cleaner concatenation
+            const API_URL = BACKEND_URL.replace(/\/$/, "");
 
-    <script>
-        const BACKEND_URL = "<%= backendUrl %>";
-
-        // Remove trailing slash if present for cleaner concatenation
-        const API_URL = BACKEND_URL.replace(/\/$/, "");
-
-        async function fetchTasks() {
-            try {
-                const response = await fetch(`${API_URL}/tasks`);
-                if (!response.ok) throw new Error('Network response was not ok');
-                const tasks = await response.json();
-                renderTasks(tasks);
-            } catch (error) {
-                console.error('Error fetching tasks:', error);
-                document.getElementById('taskList').innerHTML = `<li class="task-item" style="color:red;">Error connecting to backend (${API_URL})</li>`;
-            }
-        }
-
-        function renderTasks(tasks) {
-            const list = document.getElementById('taskList');
-            list.innerHTML = '';
-
-            if (tasks.length === 0) {
-                list.innerHTML = '<li class="task-item" style="justify-content: center; color: #888;">No tasks found. Add one!</li>';
-                return;
+            async function fetchTasks() {
+                try {
+                    const response = await fetch(`${API_URL}/tasks`);
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    const tasks = await response.json();
+                    renderTasks(tasks);
+                } catch (error) {
+                    console.error('Error fetching tasks:', error);
+                    document.getElementById('taskList').innerHTML = `<li class="task-item" style="color:red;">Error connecting to backend (${API_URL})</li>`;
+                }
             }
 
-            tasks.forEach(task => {
-                const li = document.createElement('li');
-                li.className = 'task-item';
-                li.innerHTML = `
+            function renderTasks(tasks) {
+                const list = document.getElementById('taskList');
+                list.innerHTML = '';
+
+                if (tasks.length === 0) {
+                    list.innerHTML = '<li class="task-item" style="justify-content: center; color: #888;">No tasks found. Add one!</li>';
+                    return;
+                }
+
+                tasks.forEach(task => {
+                    const li = document.createElement('li');
+                    li.className = 'task-item';
+                    li.innerHTML = `
                     <span>${escapeHtml(task.content)}</span>
                     <button class="delete-btn" onclick="deleteTask(${task.id})">Delete</button>
                 `;
-                list.appendChild(li);
-            });
-        }
-
-        async function addTask() {
-            const input = document.getElementById('taskInput');
-            const content = input.value.trim();
-            if (!content) return;
-
-            try {
-                const response = await fetch(`${API_URL}/tasks`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ content: content })
+                    list.appendChild(li);
                 });
-
-                if (response.ok) {
-                    input.value = '';
-                    fetchTasks(); // Refresh list
-                } else {
-                    alert('Failed to add task');
-                }
-            } catch (error) {
-                console.error('Error adding task:', error);
-                alert('Error adding task');
             }
-        }
 
-        async function deleteTask(id) {
-            if (!confirm('Are you sure you want to delete this task?')) return;
+            async function addTask() {
+                const input = document.getElementById('taskInput');
+                const content = input.value.trim();
+                if (!content) return;
 
-            try {
-                const response = await fetch(`${API_URL}/tasks/${id}`, {
-                    method: 'DELETE'
-                });
+                try {
+                    const response = await fetch(`${API_URL}/tasks`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ content: content })
+                    });
 
-                if (response.ok) {
-                    fetchTasks(); // Refresh list
-                } else {
-                    alert('Failed to delete task');
+                    if (response.ok) {
+                        input.value = '';
+                        fetchTasks(); // Refresh list
+                    } else {
+                        alert('Failed to add task');
+                    }
+                } catch (error) {
+                    console.error('Error adding task:', error);
+                    alert('Error adding task');
                 }
-            } catch (error) {
-                console.error('Error deleting task:', error);
-                alert('Error deleting task');
             }
-        }
 
-        function escapeHtml(text) {
-            const map = {
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#039;'
-            };
-            return text.replace(/[&<>"']/g, function (m) { return map[m]; });
-        }
+            async function deleteTask(id) {
+                if (!confirm('Are you sure you want to delete this task?')) return;
 
-        // Load tasks on startup
-        fetchTasks();
-    </script>
-</body>
+                try {
+                    const response = await fetch(`${API_URL}/tasks/${id}`, {
+                        method: 'DELETE'
+                    });
 
-</html>
+                    if (response.ok) {
+                        fetchTasks(); // Refresh list
+                    } else {
+                        alert('Failed to delete task');
+                    }
+                } catch (error) {
+                    console.error('Error deleting task:', error);
+                    alert('Error deleting task');
+                }
+            }
+
+            function escapeHtml(text) {
+                const map = {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;'
+                };
+                return text.replace(/[&<>"']/g, function (m) { return map[m]; });
+            }
+
+            // Load tasks on startup
+            fetchTasks();
+        </script>
+    </body>
+
+    </html>

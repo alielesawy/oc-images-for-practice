@@ -1,0 +1,205 @@
+<% let primaryColor='#EE0000' ; let bgColor='#f5f5f5' ; let cardColor='#ffffff' ; let textColor='#151515' ; if
+    (locals.theme==='blue' ) primaryColor='#0066CC' ; else if (locals.theme==='green' ) primaryColor='#3E8635' ; else if
+    (locals.theme==='dark' ) { primaryColor='#EE0000' ; bgColor='#151515' ; cardColor='#1f1f1f' ; textColor='#f0f0f0' ;
+    } %>
+    <!DOCTYPE html>
+    <html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>System Diagnostics & Stress Control</title>
+        <style>
+            :root {
+                --primary-color: <%=primaryColor %>;
+                --bg-color: <%=bgColor %>;
+                --card-color: <%=cardColor %>;
+                --text-color: <%=textColor %>;
+            }
+
+            body {
+                font-family: 'Red Hat Text', Helvetica, Arial, sans-serif;
+                background-color: var(--bg-color);
+                color: var(--text-color);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                margin: 0;
+            }
+
+            .container {
+                background-color: var(--card-color);
+                width: 100%;
+                max-width: 600px;
+                padding: 2rem;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                text-align: center;
+                border-top: 5px solid var(--primary-color);
+            }
+
+            h1 {
+                margin-bottom: 2rem;
+                font-size: 1.8rem;
+            }
+
+            .status-box {
+                font-size: 1.5rem;
+                font-weight: bold;
+                padding: 1rem;
+                margin-bottom: 2rem;
+                border-radius: 4px;
+                background-color: rgba(0, 0, 0, 0.05);
+                display: inline-block;
+                width: 80%;
+            }
+
+            .status-normal {
+                color: #3E8635;
+                /* Green */
+            }
+
+            .status-stress {
+                color: #EE0000;
+                /* Red */
+                animation: blink 1s infinite;
+            }
+
+            @keyframes blink {
+                0% {
+                    opacity: 1;
+                }
+
+                50% {
+                    opacity: 0.5;
+                }
+
+                100% {
+                    opacity: 1;
+                }
+            }
+
+            .controls {
+                display: flex;
+                justify-content: center;
+                gap: 20px;
+                margin-bottom: 2rem;
+            }
+
+            button {
+                padding: 15px 30px;
+                font-size: 1.2rem;
+                font-weight: bold;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                transition: transform 0.1s;
+            }
+
+            button:active {
+                transform: scale(0.98);
+            }
+
+            .btn-start {
+                background-color: #EE0000;
+                color: white;
+            }
+
+            .btn-stop {
+                background-color: #3E8635;
+                color: white;
+            }
+
+            .back-link {
+                display: block;
+                margin-top: 1rem;
+                color: var(--primary-color);
+                text-decoration: none;
+            }
+
+            .back-link:hover {
+                text-decoration: underline;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="container">
+            <h1>System Diagnostics & Stress Control</h1>
+
+            <div id="statusIndicator" class="status-box status-normal">
+                System Normal
+            </div>
+
+            <div class="controls">
+                <button class="btn-start" onclick="startStress()">🔥 START CPU STRESS</button>
+                <button class="btn-stop" onclick="stopStress()">🛑 STOP STRESS</button>
+            </div>
+
+            <div id="messageLog" style="margin-top: 1rem; font-family: monospace; height: 1.5em;"></div>
+
+            <a href="/" class="back-link">&larr; Back to TaskMaster</a>
+        </div>
+
+        <script>
+            const BACKEND_URL = "<%= backendUrl %>";
+            const API_URL = BACKEND_URL.replace(/\/$/, "");
+
+            const statusEl = document.getElementById('statusIndicator');
+            const logEl = document.getElementById('messageLog');
+
+            function updateStatus(isStressing) {
+                if (isStressing) {
+                    statusEl.textContent = "UNDER STRESS";
+                    statusEl.className = "status-box status-stress";
+                } else {
+                    statusEl.textContent = "System Normal";
+                    statusEl.className = "status-box status-normal";
+                }
+            }
+
+            function log(msg) {
+                logEl.textContent = `> ${msg}`;
+                setTimeout(() => logEl.textContent = '', 5000);
+            }
+
+            async function startStress() {
+                log("Initiating stress...");
+                try {
+                    const res = await fetch(`${API_URL}/stress/start`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ cpu_load: true })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        updateStatus(true);
+                        log(`Success: ${data.status} (PID: ${data.pid})`);
+                    } else {
+                        log(`Error: ${data.error || 'Failed to start'}`);
+                    }
+                } catch (err) {
+                    log(`Network Error: ${err.message}`);
+                }
+            }
+
+            async function stopStress() {
+                log("Stopping stress...");
+                try {
+                    const res = await fetch(`${API_URL}/stress/stop`, { method: 'POST' });
+                    const data = await res.json();
+                    if (res.ok) {
+                        updateStatus(false);
+                        log(`Success: ${data.status}`);
+                    } else {
+                        log(`Error: ${data.status || 'Failed to stop'}`);
+                    }
+                } catch (err) {
+                    log(`Network Error: ${err.message}`);
+                }
+            }
+        </script>
+    </body>
+
+    </html>

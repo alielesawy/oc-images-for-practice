@@ -37,6 +37,16 @@ app.get('/', (req, res) => {
     });
 });
 
+
+
+
+app.get('/stress', (req, res) => {
+    res.render('stress', {
+        backendUrl: BACKEND_URL,
+        theme: APP_THEME || 'red'
+    });
+});
+
 // Start Server
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Frontend running on http://0.0.0.0:${PORT}`);
