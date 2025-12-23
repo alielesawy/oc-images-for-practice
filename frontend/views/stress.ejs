@@ -40,8 +40,19 @@
             }
 
             h1 {
-                margin-bottom: 2rem;
+                margin-bottom: 1rem;
                 font-size: 1.8rem;
+            }
+
+            .pod-badge {
+                background-color: #333;
+                color: #fff;
+                padding: 4px 12px;
+                border-radius: 12px;
+                font-size: 0.75rem;
+                font-weight: bold;
+                display: inline-block;
+                margin-bottom: 2rem;
             }
 
             .status-box {
@@ -126,7 +137,9 @@
 
     <body>
         <div class="container">
-            <h1>System Diagnostics & Stress Control</h1>
+            <h1>System Diagnostics</h1>
+            <div id="podBadge" class="pod-badge">🚀 Connected to Backend Pod: <%= backend_pod_name %>
+            </div>
 
             <div id="statusIndicator" class="status-box status-normal">
                 System Normal
@@ -148,6 +161,15 @@
 
             const statusEl = document.getElementById('statusIndicator');
             const logEl = document.getElementById('messageLog');
+            const podBadge = document.getElementById('podBadge');
+
+            function updatePodName(name) {
+                if (name) {
+                    podBadge.textContent = `🚀 Connected to Backend Pod: ${name}`;
+                    podBadge.style.backgroundColor = '#555';
+                    setTimeout(() => podBadge.style.backgroundColor = '#333', 200);
+                }
+            }
 
             function updateStatus(isStressing) {
                 if (isStressing) {
@@ -173,6 +195,10 @@
                         body: JSON.stringify({ cpu_load: true })
                     });
                     const data = await res.json();
+
+                    // Observability Update
+                    if (data.pod_name) updatePodName(data.pod_name);
+
                     if (res.ok) {
                         updateStatus(true);
                         log(`Success: ${data.status} (PID: ${data.pid})`);
@@ -189,6 +215,10 @@
                 try {
                     const res = await fetch(`${API_URL}/stress/stop`, { method: 'POST' });
                     const data = await res.json();
+
+                    // Observability Update
+                    if (data.pod_name) updatePodName(data.pod_name);
+
                     if (res.ok) {
                         updateStatus(false);
                         log(`Success: ${data.status}`);
@@ -199,6 +229,22 @@
                     log(`Network Error: ${err.message}`);
                 }
             }
+
+            // Initial Health Check to set badge if not passed from server
+            // This is optional if server-side rendering is working, but robust.
+            async function checkHealth() {
+                try {
+                    const res = await fetch(`${API_URL}/health`);
+                    const data = await res.json();
+                    if (data.pod_name) updatePodName(data.pod_name);
+                } catch (ignore) { }
+            }
+
+            // If we are showing "Ready to Connect..." (default from server.js for /stress), try to fetch immediately
+            if (podBadge.textContent.includes("Ready to Connect")) {
+                checkHealth();
+            }
+
         </script>
     </body>
 

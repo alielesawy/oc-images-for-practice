@@ -11,7 +11,6 @@
         <title>OCP TaskMaster</title>
         <style>
             :root {
-                /* Dynamic Theme Variables */
                 --primary-color: <%=primaryColor %>;
                 --rh-black: <%=textColor %>;
                 --rh-white: #FFFFFF;
@@ -39,6 +38,7 @@
                 border-radius: 4px;
                 box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
                 border-top: 5px solid var(--primary-color);
+                position: relative;
             }
 
             header {
@@ -54,6 +54,17 @@
                 letter-spacing: 0.05em;
             }
 
+            .pod-badge {
+                background-color: #333;
+                color: #fff;
+                padding: 4px 12px;
+                border-radius: 12px;
+                font-size: 0.75rem;
+                font-weight: bold;
+                display: inline-block;
+                margin-top: 5px;
+            }
+
             .input-group {
                 display: flex;
                 gap: 10px;
@@ -66,6 +77,8 @@
                 border: 1px solid var(--border-color);
                 border-radius: 3px;
                 font-size: 1rem;
+                background-color: var(--bg-color);
+                color: var(--rh-black);
             }
 
             input[type="text"]:focus {
@@ -108,7 +121,7 @@
             }
 
             .task-item:hover {
-                background-color: #fafafa;
+                background-color: rgba(0, 0, 0, 0.02);
             }
 
             .delete-btn {
@@ -123,7 +136,7 @@
 
             .delete-btn:hover {
                 color: var(--primary-color);
-                background-color: #f0f0f0;
+                background-color: rgba(0, 0, 0, 0.05);
             }
 
             footer {
@@ -140,6 +153,8 @@
         <div class="container">
             <header>
                 <h1>OCP TaskMaster</h1>
+                <div id="podBadge" class="pod-badge">🚀 Connected to Backend Pod: <%= backend_pod_name %>
+                </div>
             </header>
 
             <div class="input-group">
@@ -161,19 +176,35 @@
 
         <script>
             const BACKEND_URL = "<%= backendUrl %>";
-
-            // Remove trailing slash if present for cleaner concatenation
             const API_URL = BACKEND_URL.replace(/\/$/, "");
+            const podBadge = document.getElementById('podBadge');
+
+            function updatePodName(name) {
+                if (name) {
+                    podBadge.textContent = `🚀 Connected to Backend Pod: ${name}`;
+                    // Optional: Flash effect
+                    podBadge.style.backgroundColor = '#555';
+                    setTimeout(() => podBadge.style.backgroundColor = '#333', 200);
+                }
+            }
 
             async function fetchTasks() {
                 try {
                     const response = await fetch(`${API_URL}/tasks`);
-                    if (!response.ok) throw new Error('Network response was not ok');
                     const tasks = await response.json();
+
+                    // Observability Update
+                    if (tasks.length > 0 && tasks[0].pod_name) {
+                        updatePodName(tasks[0].pod_name);
+                    } else if (tasks.pod_name) {
+                        // In case we get an object (like error) with pod_name
+                        updatePodName(tasks.pod_name);
+                    }
+
                     renderTasks(tasks);
                 } catch (error) {
                     console.error('Error fetching tasks:', error);
-                    document.getElementById('taskList').innerHTML = `<li class="task-item" style="color:red;">Error connecting to backend (${API_URL})</li>`;
+                    document.getElementById('taskList').innerHTML = `<li class="task-item" style="color:red;">Error connecting to backend</li>`;
                 }
             }
 
@@ -205,21 +236,23 @@
                 try {
                     const response = await fetch(`${API_URL}/tasks`, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ content: content })
                     });
 
+                    const data = await response.json();
+
+                    // Observability Update
+                    if (data.pod_name) updatePodName(data.pod_name);
+
                     if (response.ok) {
                         input.value = '';
-                        fetchTasks(); // Refresh list
+                        fetchTasks(); // Refresh list to get updated state
                     } else {
                         alert('Failed to add task');
                     }
                 } catch (error) {
                     console.error('Error adding task:', error);
-                    alert('Error adding task');
                 }
             }
 
@@ -231,6 +264,10 @@
                         method: 'DELETE'
                     });
 
+                    const data = await response.json();
+                    // Observability Update
+                    if (data.pod_name) updatePodName(data.pod_name);
+
                     if (response.ok) {
                         fetchTasks(); // Refresh list
                     } else {
@@ -238,18 +275,11 @@
                     }
                 } catch (error) {
                     console.error('Error deleting task:', error);
-                    alert('Error deleting task');
                 }
             }
 
             function escapeHtml(text) {
-                const map = {
-                    '&': '&amp;',
-                    '<': '&lt;',
-                    '>': '&gt;',
-                    '"': '&quot;',
-                    "'": '&#039;'
-                };
+                const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
                 return text.replace(/[&<>"']/g, function (m) { return map[m]; });
             }
 
