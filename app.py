@@ -13,7 +13,7 @@ import socket
 # Configure Logging
 logging.basicConfig(
     stream=sys.stdout,
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
 )
 logger = logging.getLogger(__name__)
@@ -110,11 +110,10 @@ def init_db():
     sys.exit(1)
 
 # Request Logging Middleware
-@app.before_request
-def log_request_info():
-    logger.debug(f"Handling Request: {request.method} {request.path}")
-    if request.is_json:
-        logger.debug(f"Request Body: {request.get_json()}")
+@app.after_request
+def log_request_info(response):
+    logger.info(f"Handled Request: {request.method} {request.path} - Status: {response.status_code}")
+    return response
 
 @app.route('/health', methods=['GET'])
 def health_check():
